@@ -73,12 +73,12 @@ class MemorySession(object):
 			self._expunge = PeriodicExpiration()
 	
 	def start(self, context):
-		if self.expire:
-			self._expunge.start()
+		"""Spawn the auto-expunge thread on startup if configured to do so."""
+		if self.expire: self._expunge.start()
 	
 	def stop(self, context):
-		if self.expire:
-			self._expunge.stop()
+		"""Shut down the auto-expunge thread if one was configured."""
+		if self.expire: self._expunge.stop()
 	
 	def is_valid(self, context, sid):
 		"""Identify if the given session ID is valid in our stores."""
@@ -108,12 +108,13 @@ class MemorySession(object):
 		elif __debug__:
 			log.debug("Loading existing in-memory session.", extra=dict(session=sid))
 		
-		if self._expire:
-			self._sessions[sid]
-		
 		return self._sessions[sid]
 	
 	def persist(self, context, sid, session):
+		"""Perform the work of saving modified session data back out.
+		
+		The in-memory representation is modified "live" in-place, so this only updates our expiry time.
+		"""
 		if self._expire:
 			session['_expires'] = datetime.utcnow() + self._expire
 
