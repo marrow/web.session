@@ -68,6 +68,17 @@ class MemorySession(object):
 			expire = timedelta(hours=expire)
 		
 		self._expire = expire
+		
+		if expire:
+			self._expunge = PeriodicExpiration()
+	
+	def start(self, context):
+		if self.expire:
+			self._expunge.start()
+	
+	def stop(self, context):
+		if self.expire:
+			self._expunge.stop()
 	
 	def is_valid(self, context, sid):
 		"""Identify if the given session ID is valid in our stores."""
