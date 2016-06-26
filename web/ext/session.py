@@ -132,7 +132,7 @@ class SessionExtension(object):
 		context.session = context.session._promote('SessionGroup')  # Allow the lazy descriptor to run from the class.
 		context.session['_ctx'] = context  # Bind this promoted SessionGroup to the current context.
 		
-		self._handle_event('prepare', context)
+		self._handle_event('prepare', context, overrides=True)
 	
 	def after(self, context):
 		"""Called after the view has prepared a response, prior to details being sent to the client.
@@ -145,7 +145,7 @@ class SessionExtension(object):
 			return
 		
 		# engines could have made a new storage even if the id is old
-		self._handle_event('after', context)
+		self._handle_event('after', context, overrides=True)
 		
 		# if the session id has just been generated this request, we need to set the cookie
 		if '_new' not in context.session.__dict__:
@@ -160,7 +160,7 @@ class SessionExtension(object):
 		This helps us defer the overhead of writing session data out until after the client is already served.
 		"""
 		
-		self._handle_event('done', context)
+		self._handle_event('done', context, overrides=True)
 		
 		if '_id' not in context.session.__dict__:
 			return  # Bail early if the session was never accessed.
@@ -169,7 +169,7 @@ class SessionExtension(object):
 		for ext in set(context.session.__dict__) & set(self.engines):
 			self.engines[ext].persist(context, context.session._id, context.session[ext])
 	
-	def _handle_event(self, event, *args, **kw):
+	def _handle_event(self, event, context, *args, **kw):
 		"""Send a signal event to all session engines
 		
 		* `event` -- the signal to run on all session engines
@@ -180,14 +180,13 @@ class SessionExtension(object):
 			this request or not, otherwise only engines that have been accessed during this request will have events
 			run. If there is no kwarg for context, all engines will have the event run regardless
 		"""
-		override = kw.get('overrides', False)
-		context = kw.get('context', None)
+		override = kw.pop('overrides', False)
 		
 		# In a typical scenario these callbacks will only happen if the specific session engine was accessed
 		for engine in self.engines.values():
 			if engine is not None and hasattr(engine, event):
 				if override or context is None or engine.__name__ in context.session.__dict__:
-					getattr(engine, event)(*args, **kw)
+					getattr(engine, event)(context, *args, **kw)
 	
 	def __getattr__(self, name):
 		"""Pass any signals SessionExtension doesn't use on to SessionEngines"""

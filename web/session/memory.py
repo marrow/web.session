@@ -74,11 +74,11 @@ class MemorySession(object):
 	
 	def start(self, context):
 		"""Spawn the auto-expunge thread on startup if configured to do so."""
-		if self.expire: self._expunge.start()
+		if self._expire: self._expunge.start()
 	
 	def stop(self, context):
 		"""Shut down the auto-expunge thread if one was configured."""
-		if self.expire: self._expunge.stop()
+		if self._expire: self._expunge.stop()
 	
 	def is_valid(self, context, sid):
 		"""Identify if the given session ID is valid in our stores."""
