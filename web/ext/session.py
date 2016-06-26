@@ -67,7 +67,7 @@ class SessionExtension(object):
 			if not __debug__:
 				raise ValueError("A secret must be defined in production environments.")
 			
-			log.warn("Generating tempoarary session secret; sessions will not persist between restarts.")
+			log.warn("Generating temporary session secret; sessions will not persist between restarts.")
 			secret = hexlify(urandom(32)).decode('ascii')
 		
 		if expires and (hasattr(expires, 'isdigit') or isinstance(expires, (int, float))):
