@@ -65,7 +65,7 @@ class SessionExtension(object):
 		self._cookie = cookie = cookie if cookie else dict()
 		
 		cookie.setdefault('name', 'session')
-		cookie.setdefault('http_only', True)
+		cookie.setdefault('httponly', True)
 		cookie.setdefault('path', '/')
 		if expires:
 			cookie.setdefault('max_age', expires.days * 24 * 60 * 60 + expires.hours * 60 * 60 + expires.minutes * 60 + expires.seconds)
