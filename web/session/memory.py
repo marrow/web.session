@@ -59,7 +59,7 @@ class PeriodicExpiration(object):
 
 
 class MemorySession(object):
-	def __init__(self, expire=None):
+	def __init__(self, expire=None, refresh=True):
 		"""Initialize in-memory session storage."""
 		
 		self._sessions = {}
@@ -68,6 +68,7 @@ class MemorySession(object):
 			expire = timedelta(hours=expire)
 		
 		self._expire = expire
+		self._refresh = refresh
 		
 		if expire:
 			self._expunge = PeriodicExpiration()
@@ -86,6 +87,9 @@ class MemorySession(object):
 	
 	def invalidate(self, context, sid):
 		"""Delete our storage of the given session."""
+		if __debug__:
+			log.debug("", extra=dict(request=id(context), session=sid))
+		
 		return self._sessions.pop(sid, None) is not None
 	
 	def load(self, context, sid):
@@ -95,18 +99,18 @@ class MemorySession(object):
 		
 		if sid not in self._sessions:
 			if __debug__:
-				log.debug("Constructing new in-memory session.", extra=dict(session=sid))
+				log.debug("Constructing new in-memory session.", extra=dict(request=id(context), session=sid))
 			
 			self._sessions[sid] = Context()
 		
 		elif self._expire and '_expires' in self._sessions[sid] and self._sessions[sid]['_expires'] <= now:
 			if __debug__:
-				log.debug("Recreating expired in-memory session.", extra=dict(session=sid))
+				log.debug("Recreating expired in-memory session.", extra=dict(request=id(context), session=sid))
 			
 			self._sessions[sid] = Context()
 		
 		elif __debug__:
-			log.debug("Loading existing in-memory session.", extra=dict(session=sid))
+			log.debug("Loading existing in-memory session.", extra=dict(request=id(context), session=sid))
 		
 		return self._sessions[sid]
 	
@@ -115,6 +119,9 @@ class MemorySession(object):
 		
 		The in-memory representation is modified "live" in-place, so this only updates our expiry time.
 		"""
-		if self._expire:
+		if __debug__:
+			log.debug("Persisting in-memory session.", extra=dict(request=id(context), session=sid))
+		
+		if self._expire and self._refresh:
 			session['_expires'] = datetime.utcnow() + self._expire
 
