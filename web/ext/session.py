@@ -35,8 +35,6 @@ class SessionExtension(object):
 	`context.session` object whose attributes are (lazily) loaded on access, and persists .
 	"""
 	
-	__slots__ = ('engines', 'uses', 'needs', 'provides', '_cookie')
-	
 	provides = {'session'}
 	needs = {'request'}
 	
