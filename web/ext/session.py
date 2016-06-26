@@ -41,19 +41,26 @@ class SessionExtension(object):
 	needs = {'request'}
 	
 	def __init__(self, default=None, expires=None, cookie=None, **engines):
-		"""Configure settings and setup slots for the extension
+		"""Configure session management extension and prepare engines.
 		
-		Current settings consist of the following:
-		* `engines` -- either `None`, which will setup a default `MemorySessionEngine`, or a `dict` of
-		 	session engines. This setting is used to tell the `SessionExtension` which session engines to use. This
-			setting should contain at least one entry with the key `default`
-		* `cookie' -- either `None` or a `dict`. This is used to tell the `SessionExtension` which settings to use
-			for the browser cookie. possible options are 'name' - `str`, 'max_age' - `int`, 'http_only' - `True` or
-			`False`, and `str` 'path'
+		The first positional argument, `default`, represents the target of otherwise unknown attribute access to the
+		`context.session` object. If one is not given, a `MemorySession` instance will be utilized.
+		
+		An optional `expires` time may be given (either a `timedelta` object or an integer representing a number of
+		hours) to indicate the lifetime of abandoned sessions; this will be used as the default cookie `max_age` if
+		set.
+		
+		Cookie settings, to be passed through to the `context.response.set_cookie` WebOb helper, may be passed as a
+		dictionary or dictionary-alike named `cookie`.
+		
+		Additional keyword arguments are used as session engines assigned as lazily loaded attributes of the
+		`context.session` object. Individual engines may have their own expiry controls in addition to the global
+		setting made here. (There is never a point in setting a specific engine's expiry time to be longer than the
+		global.)
 		"""
 		
-		if expires and hasattr(expires, 'isdigit'):
-			expires = timedelta(days=expires)
+		if expires and (hasattr(expires, 'isdigit') or isinstance(expires, (int, float))):
+			expires = timedelta(hours=int(expires))
 		
 		engines['default'] = default if default else MemorySession()
 		self.engines = engines
@@ -120,29 +127,27 @@ class SessionExtension(object):
 		
 		We additionally promote our DBGroup of extensions here and "bind" the group to this request.
 		"""
-		context.db = context.db._promote('DBGroup')
-		context.db['_ctx'] = context
-		self._handle_event('prepare', context)
+		
 		if __debug__:
-			log.debug("Preparing session group")
+			log.debug("Preparing session group.", extra=dict(request=id(context)))
 		
-		# Must promote the ContextGroup so that the lazy wrapped function calls operate properly
-		context.session = context.session._promote('SessionGroup')
+		context.session = context.session._promote('SessionGroup')  # Allow the lazy descriptor to run from the class.
+		context.session['_ctx'] = context  # Bind this promoted SessionGroup to the current context.
 		
-		# Give lazy wrapped functions a way to access the RequestContext
-		context.session['_ctx'] = context
-		
-		self._handle_event('prepare', context=context)
+		self._handle_event('prepare', context)
 	
 	def after(self, context):
-		"""Determine if the session cookie needs to be set"""
+		"""Called after the view has prepared a response, prior to details being sent to the client.
+		
+		Determine if the session cookie needs to be set, if so, set it.
+		"""
 		
 		# if the session was accessed at all during this request
 		if '_id' not in context.session.__dict__:
 			return
 		
 		# engines could have made a new storage even if the id is old
-		self._handle_event('after', context=context)
+		self._handle_event('after', context)
 		
 		# if the session id has just been generated this request, we need to set the cookie
 		if '_new' not in context.session.__dict__:
@@ -150,6 +155,21 @@ class SessionExtension(object):
 		
 		# see WebOb request / response
 		context.response.set_cookie(value=context.session._id, **self._cookie)
+	
+	def done(self, context):
+		"""Called after the response has been fully sent to the client.
+		
+		This helps us defer the overhead of writing session data out until after the client is already served.
+		"""
+		
+		self._handle_event('done', context)
+		
+		if '_id' not in context.session.__dict__:
+			return  # Bail early if the session was never accessed.
+		
+		# Inform session engines that had their data touched to persist any changes.
+		for ext in set(context.session.__dict__) & set(self.engines):
+			self.engines[ext].persist(context, context.session._id, context.session[ext])
 	
 	def _handle_event(self, event, *args, **kw):
 		"""Send a signal event to all session engines
