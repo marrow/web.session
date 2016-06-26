@@ -124,6 +124,7 @@ setup(
 	
 	install_requires = [
 			'marrow.package<2.0',  # dynamic execution and plugin management
+			'itsdangerous',  # token signing
 		],
 	tests_require = tests_require,
 	
