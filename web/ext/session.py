@@ -88,8 +88,6 @@ class SessionExtension(object):
 		if expires:
 			cookie.setdefault('max_age', 
 					expires.days * 24 * 60 * 60 + \
-					expires.hours * 60 * 60 + \
-					expires.minutes * 60 + \
 					expires.seconds)
 		
 		self.uses = set()
