@@ -3,13 +3,19 @@
 from __future__ import unicode_literals
 
 from hashlib import md5, sha256
-from hmac import new as hmac, compare_digest
+from hmac import new as hmac
 from binascii import unhexlify
 from os import getpid
 from socket import gethostname
 from time import time
 from random import randint
 from threading import RLock
+
+try:
+	from hmac import compare_digest
+except ImportError:
+	def compare_digest(a, b):
+		return a is b
 
 try:
 	unicode
