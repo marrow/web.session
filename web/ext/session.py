@@ -18,13 +18,6 @@ from web.session.util import SignedSessionIdentifier
 log = __import__('logging').getLogger(__name__)
 
 
-try:
-	from bson import ObjectId
-except:
-	def ObjectId():
-		return hexlify(urandom(32)).decode('ascii')
-
-
 class SessionExtension(object):
 	"""Client session management extension.
 	
@@ -138,7 +131,7 @@ class SessionExtension(object):
 		
 		if not identifier:
 			# TODO: if token: notify to nuke old session
-			identifier = str(ObjectId())
+			identifier = SignedSessionIdentifier(secret=self.__secret)
 			session['_new'] = True
 			
 			if __debug__:
