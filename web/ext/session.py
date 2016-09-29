@@ -9,10 +9,10 @@ from binascii import hexlify
 from datetime import timedelta
 from functools import partial
 
-from web.core.util import lazy
-from web.core.context import ContextGroup
-from web.session.memory import MemorySession
-from web.session.util import SignedSessionIdentifier
+from ..core.util import lazy
+from ..core.context import ContextGroup
+from ..session.memory import MemorySession
+from ..session.util import SignedSessionIdentifier
 
 
 log = __import__('logging').getLogger(__name__)
@@ -29,9 +29,11 @@ class SessionExtension(object):
 	level callbacks directly. Certain objects conform to protocols, please see the read-me and individual callbacks
 	below for details.
 	"""
+
+	__slots__ = ('provides', 'needs', 'uses', '__secret', 'refreshes', 'cookie', 'engines', 'expires')
 	
-	provides = {'session'}  # We provide this feature to the application.
-	needs = {'request'}  # We depend on the cookie-setting power of the `context.response` object.
+	_provides = {'session'}  # We provide this feature to the application.
+	_needs = {'request'}  # We depend on the cookie-setting power of the `context.response` object.
 	excludes = {'session'}  # Must be a singleton.
 	
 	def __init__(self, secret=None, default=None, auto=False, expires=None, cookie=None, refresh=True, **engines):
@@ -63,7 +65,7 @@ class SessionExtension(object):
 		"""
 		
 		if not secret:  # Ensure we either have a secret, or generate one in development.
-			if not __debug__:
+			if not __debug__:  # pragma: no cover
 				raise ValueError("A secret must be defined in production environments.")
 			
 			secret = hexlify(urandom(64)).decode('ascii')
@@ -71,10 +73,11 @@ class SessionExtension(object):
 					secret = secret,
 				))
 		
-		self._refresh = refresh
+		self.refreshes = refresh
 		self.__secret = secret
-		self._cookie = cookie = cookie or dict()
+		self.cookie = cookie = cookie or dict()
 		self.engines = engines
+		self.expires = None
 		
 		engines['default'] = default or MemorySession()
 		
@@ -84,20 +87,17 @@ class SessionExtension(object):
 		
 		if expires:  # We need the expiry time in seconds.
 			if hasattr(expires, 'isdigit') or isinstance(expires, (int, float)):
-				self._expires = expires = int(expires) * 60 * 60
+				self.expires = expires = int(expires) * 60 * 60
 			
 			elif isinstance(expires, timedelta):
-				self._expires = expires = expires.days * 24 * 60 * 60 + \
-						expires.hours * 60 * 60 + \
-						expires.minutes * 60 + \
-						expires.seconds
+				self.expires = expires = expires.total_seconds()
 			
 			cookie.setdefault('max_age', expires)
 		
 		# Calculated updated extension dependency graphing metadata.
 		self.uses = set()
-		self.needs = set(self.needs)
-		self.provides = set(self.provides)
+		self.needs = set(self._needs)
+		self.provides = set(self._provides)
 		
 		# Gather all the dependency information from session engines.
 		for name, engine in engines.items():
@@ -117,21 +117,14 @@ class SessionExtension(object):
 		
 		cookies = session._ctx.request.cookies
 		identifier = None
-		token = cookies.get(self._cookie['name'], None)
+		token = cookies.get(self.cookie['name'], None)
 		
 		if isinstance(token, bytes):
 			token = token.decode('ascii')
 		
 		if token:
 			try:
-				if self._expires:
-					expires = self._expires.days * 24 * 60 * 60 + \
-							self._expires.hours * 60 * 60 + \
-							self._expires.minutes * 60 + \
-							self._expires.seconds
-					identifier = SignedSessionIdentifier(token, secret=self.__secret, expires=expires)
-				else:
-					identifier = SignedSessionIdentifier(token, secret=self.__secret)
+				identifier = SignedSessionIdentifier(token, secret=self.__secret, expires=self.expires)
 			
 			except ValueError:
 				log.warn("Signature failed to validate.", extra=dict(request=id(session._ctx)))
@@ -195,11 +188,11 @@ class SessionExtension(object):
 			return
 		
 		# if the session id has just been generated this request, we need to set the cookie
-		if not self._refresh and '_new' not in context.session.__dict__:
+		if not self.refreshes and '_new' not in context.session.__dict__:
 			return
 		
 		# see WebOb request / response
-		context.response.set_cookie(value=str(context.session._id), **self._cookie)
+		context.response.set_cookie(value=str(context.session._id), **self.cookie)
 	
 	def done(self, context):
 		"""Called after the response has been fully sent to the client.
@@ -246,3 +239,4 @@ class SessionExtension(object):
 		for engine in self.engines.values():
 			if name in dir(engine):
 				return partial(self._handle_event, True, name)
+
