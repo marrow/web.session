@@ -22,19 +22,25 @@ class SessionExtension(object):
 	"""Client session management extension.
 	
 	This extension provides a modular approach to managing sessions, with the concept of a "default" engine handling
-	most requests, and optional additional engines accessible by their prefix. It populates (lazily) a
-	`context.session` object whose attributes are (lazily) loaded on access, and persists .
+	most requests, and optional additional engines accessible by their name. It populates (lazily) a `context.session`
+	object whose attributes are (lazily) loaded on access.
+	
+	An extensive API of callbacks are provided to session engines, while also passing through the WebCore extension
+	level callbacks directly. Certain objects conform to protocols, please see the read-me and individual callbacks
+	below for details.
 	"""
 	
-	provides = {'session'}
-	needs = {'request'}
+	provides = {'session'}  # We provide this feature to the application.
+	needs = {'request'}  # We depend on the cookie-setting power of the `context.response` object.
+	excludes = {'session'}  # Must be a singleton.
 	
-	def __init__(self, secret=None, default=None, expires=None, cookie=None, refresh=True, **engines):
+	def __init__(self, secret=None, default=None, auto=False, expires=None, cookie=None, refresh=True, **engines):
 		"""Configure session management extension and prepare engines.
 		
 		The first positional argument is `secret`, the application-secret value used as the cryptographic basis for
-		cookie validation. Make sure to set this to a reasonably large random value in production environments. In
-		development, if not provided, a different pseudo-random value will be generated on each start.
+		cookie validation. Make sure to set this to a reasonably large random, but consistent value in production
+		environments. You can even change it when you wish to invalidate all current sessions. In development, if
+		not provided, a different pseudo-random value will be generated on each start.
 		
 		The next positional argument, `default`, represents the target of otherwise unknown attribute access to the
 		`context.session` object. If one is not given, a `MemorySession` instance will be utilized.
@@ -56,41 +62,47 @@ class SessionExtension(object):
 		global.)
 		"""
 		
-		if not secret:
+		if not secret:  # Ensure we either have a secret, or generate one in development.
 			if not __debug__:
 				raise ValueError("A secret must be defined in production environments.")
 			
-			log.warn("Generating temporary session secret; sessions will not persist between restarts.")
-			secret = hexlify(urandom(32)).decode('ascii')
-		
-		if expires and (hasattr(expires, 'isdigit') or isinstance(expires, (int, float))):
-			expires = timedelta(hours=int(expires))
+			secret = hexlify(urandom(64)).decode('ascii')
+			log.warn("Generating temporary session secret; sessions will not persist between restarts.", extra=dict(
+					secret = secret,
+				))
 		
 		self._refresh = refresh
-		self._expires = expires
 		self.__secret = secret
-		
-		engines['default'] = default if default else MemorySession()
+		self._cookie = cookie = cookie or dict()
 		self.engines = engines
-		self._cookie = cookie = cookie if cookie else dict()
+		
+		engines['default'] = default or MemorySession()
 		
 		cookie.setdefault('name', 'session')
 		cookie.setdefault('httponly', True)
 		cookie.setdefault('path', '/')
 		
-		if expires:
-			cookie.setdefault('max_age', 
-					expires.days * 24 * 60 * 60 + \
-					expires.seconds)
+		if expires:  # We need the expiry time in seconds.
+			if hasattr(expires, 'isdigit') or isinstance(expires, (int, float)):
+				self._expires = expires = int(expires) * 60 * 60
+			
+			elif isinstance(expires, timedelta):
+				self._expires = expires = expires.days * 24 * 60 * 60 + \
+						expires.hours * 60 * 60 + \
+						expires.minutes * 60 + \
+						expires.seconds
+			
+			cookie.setdefault('max_age', expires)
 		
+		# Calculated updated extension dependency graphing metadata.
 		self.uses = set()
 		self.needs = set(self.needs)
 		self.provides = set(self.provides)
 		
-		# Gather all the dependency information from Session Engines
-		for name, engine in self.engines.items():
-			if engine is None: continue  # Handle no-default case.
-			engine.__name__ = name  # Inform the engine what its name is.
+		# Gather all the dependency information from session engines.
+		for name, engine in engines.items():
+			engine.name = name  # Inform the engine what its name is.
+			
 			self.uses.update(getattr(engine, 'uses', ()))
 			self.needs.update(getattr(engine, 'needs', ()))
 			self.provides.update(getattr(engine, 'provides', ()))
@@ -114,9 +126,9 @@ class SessionExtension(object):
 			try:
 				if self._expires:
 					expires = self._expires.days * 24 * 60 * 60 + \
-							self.expires.hours * 60 * 60 + \
-							self.expires.minutes * 60 + \
-							self.expires.seconds
+							self._expires.hours * 60 * 60 + \
+							self._expires.minutes * 60 + \
+							self._expires.seconds
 					identifier = SignedSessionIdentifier(token, secret=self.__secret, expires=expires)
 				else:
 					identifier = SignedSessionIdentifier(token, secret=self.__secret)
@@ -222,14 +234,15 @@ class SessionExtension(object):
 		
 		# Call the event callback, if present in the engine.
 		for name, engine in engines:
-			if not hasattr(engine, event): continue
-			getattr(engine, event)(context, *args, **kw)
+			if hasattr(engine, event):
+				getattr(engine, event)(context, *args, **kw)
 	
 	def __getattr__(self, name):
 		"""Pass any signals SessionExtension doesn't use on to SessionEngines"""
 		
-		# Only allow signals defined in `web.ext.extensions.WebExtensions`
-		if name not in ('stop', 'graceful', 'dispatch', 'before', 'interactive', 'inspect'):
+		if name.startswith('_'):  # Deny access to private attributes.
 			raise AttributeError()
 		
-		return partial(self._handle_event, True, name)
+		for engine in self.engines.values():
+			if name in dir(engine):
+				return partial(self._handle_event, True, name)
