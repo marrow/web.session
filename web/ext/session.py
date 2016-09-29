@@ -8,11 +8,11 @@ from os import urandom
 from binascii import hexlify
 from datetime import timedelta
 from functools import partial
-from itsdangerous import Signer, TimestampSigner, BadSignature
 
 from web.core.util import lazy
 from web.core.context import ContextGroup
 from web.session.memory import MemorySession
+from web.session.util import SignedSessionIdentifier
 
 
 log = __import__('logging').getLogger(__name__)
@@ -75,7 +75,7 @@ class SessionExtension(object):
 		
 		self._refresh = refresh
 		self._expires = expires
-		self._signer = TimestampSigner(secret) if expires else Signer(secret)
+		self.__secret = secret
 		
 		engines['default'] = default if default else MemorySession()
 		self.engines = engines
@@ -120,17 +120,16 @@ class SessionExtension(object):
 		if token:
 			try:
 				if self._expires:
-					expires = self._expires
-					identifier = self._signer.unsign(token,
-							expires.days * 24 * 60 * 60 + \
-							expires.hours * 60 * 60 + \
-							expires.minutes * 60 + \
-							expires.seconds)
+					expires = self._expires.days * 24 * 60 * 60 + \
+							self.expires.hours * 60 * 60 + \
+							self.expires.minutes * 60 + \
+							self.expires.seconds
+					identifier = SignedSessionIdentifier(token, secret=self.__secret, expires=expires)
 				else:
-					identifier = self._signer.unsign(token).decode('ascii')
+					identifier = SignedSessionIdentifier(token, secret=self.__secret)
 			
-			except BadSignature:
-				log.info("Signature failed to validate.", extra=dict(request=id(session._ctx)))
+			except ValueError:
+				log.warn("Signature failed to validate.", extra=dict(request=id(session._ctx)))
 			
 			else:
 				if __debug__:
@@ -194,11 +193,8 @@ class SessionExtension(object):
 		if not self._refresh and '_new' not in context.session.__dict__:
 			return
 		
-		# Sign the token.
-		token = self._signer.sign(context.session._id.encode('ascii'))
-		
 		# see WebOb request / response
-		context.response.set_cookie(value=token, **self._cookie)
+		context.response.set_cookie(value=str(context.session._id), **self._cookie)
 	
 	def done(self, context):
 		"""Called after the response has been fully sent to the client.
