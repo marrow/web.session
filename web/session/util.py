@@ -75,6 +75,9 @@ class SessionIdentifier(object):
 	
 	if not py3:
 		__unicode__ = __str__
+		
+		def __str__(self):
+			return self.__unicode__().encode('ascii')
 
 
 class SignedSessionIdentifier(SessionIdentifier):
@@ -110,7 +113,11 @@ class SignedSessionIdentifier(SessionIdentifier):
 	@property
 	def signature(self):
 		if not self.__signature:
-			self.__signature = hmac(self.__secret, unhexlify(super(SignedSessionIdentifier, self).__str__()), sha256).hexdigest()
+			self.__signature = hmac(
+					self.__secret,
+					unhexlify(str(self).encode('ascii')),
+					sha256
+				).hexdigest()
 		
 		return self.__signature
 	
@@ -122,7 +129,11 @@ class SignedSessionIdentifier(SessionIdentifier):
 		if self.expires and (time() - self.time) > self.expires:
 			return False
 		
-		challenge = hmac(self.__secret, unhexlify(super(SignedSessionIdentifier, self).__str__()), sha256).hexdigest()
+		challenge = hmac(
+				self.__secret,
+				unhexlify(str(self).encode('ascii')),
+				sha256
+			).hexdigest()
 		
 		return compare_digest(challenge, self.signature)
 
