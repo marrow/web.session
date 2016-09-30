@@ -76,16 +76,17 @@ class SessionIdentifier(object):
 		self.counter = next(counter)
 	
 	def __str__(self):
+		return self.__unicode__().encode('ascii')
+	
+	def __unicode__(self):
 		return "{self.time:08x}{self.machine:06x}{self.process:04x}{self.counter:06x}".format(self=self)
 	
 	def __repr__(self):
 		return "{self.__class__.__name__}('{self}')".format(self=self)
 	
-	if not py3:
-		__unicode__ = __str__
-		
-		def __str__(self):
-			return self.__unicode__().encode('ascii')
+	if py3:
+		__bytes__ = __str__
+		__str__ = __unicode__
 
 
 class SignedSessionIdentifier(SessionIdentifier):
@@ -106,26 +107,26 @@ class SignedSessionIdentifier(SessionIdentifier):
 		if self.expires and (time() - self.time) > self.expires:
 			raise SignatureError("Expired signed identifier.")
 		
-		self.__signature = value[24:]
+		self.__signature = value[24:].encode('ascii')
 		
 		if not self.valid:
 			raise SignatureError("Invalid signed identifier.")
 	
 	@property
 	def signed(self):
-		return (str(self) + self.signature).encode('ascii')
+		return bytes(self) + self.signature
 	
 	@property
 	def signature(self):
 		if not self.__signature:
 			self.__signature = hmac(
 					self.__secret,
-					unhexlify(str(self).encode('ascii')),
+					unhexlify(bytes(self)),
 					sha256
 				).hexdigest()
 			
-			if not isinstance(self.__signature, str):
-				self.__signature = self.__signature.decode('ascii')
+			if hasattr(self.__signature, 'encode'):
+				self.__signature = self.__signature.encode('ascii')
 		
 		return self.__signature
 	
@@ -142,6 +143,9 @@ class SignedSessionIdentifier(SessionIdentifier):
 				unhexlify(str(self).encode('ascii')),
 				sha256
 			).hexdigest()
+		
+		if hasattr(challenge, 'encode'):
+			challenge = challenge.encode('ascii')
 		
 		return compare_digest(challenge, self.signature)
 
