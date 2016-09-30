@@ -29,6 +29,7 @@ tests_require = [
 		'pytest-cov',  # coverage reporting
 		'pytest-flakes',  # syntax validation
 		'pytest-capturelog',  # log capture
+		'web.dispatch.object',  # test endpoint routing
 	]
 
 
