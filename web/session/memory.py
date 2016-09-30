@@ -105,7 +105,7 @@ class MemorySession(object):
 			
 			self._sessions[sid] = Context()
 		
-		elif self._expire and '_expires' in self._sessions[sid] and self._sessions[sid]['_expires'] <= now:
+		elif self._expire and '_expires' in self._sessions[sid] and self._sessions[sid]._expires <= now:
 			if __debug__:
 				log.debug("Recreating expired in-memory session.")
 			
@@ -114,9 +114,11 @@ class MemorySession(object):
 		elif __debug__:
 			log.debug("Loading existing in-memory session.")
 		
+		session[self.name] = self._sessions[sid]
+		
 		return self._sessions[sid]
 	
-	def persist(self, context, sid, session):
+	def persist(self, context):
 		"""Perform the work of saving modified session data back out.
 		
 		The in-memory representation is modified "live" in-place, so this only updates our expiry time.
@@ -124,6 +126,6 @@ class MemorySession(object):
 		if __debug__:
 			log.debug("Persisting in-memory session.")
 		
-		if self._expire and self._refresh:
-			session['_expires'] = datetime.utcnow() + self._expire
+		if self._expire and (self._refresh or '_expires' not in getattr(context.session, self.name)):
+			getattr(context.session, self.name)._expires = datetime.utcnow() + self._expire
 
