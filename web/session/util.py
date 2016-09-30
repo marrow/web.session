@@ -106,7 +106,7 @@ class SignedSessionIdentifier(SessionIdentifier):
 		if self.expires and (time() - self.time) > self.expires:
 			raise SignatureError("Expired signed identifier.")
 		
-		self._signature = value[24:]
+		self.__signature = value[24:]
 		
 		if not self.valid:
 			raise SignatureError("Invalid signed identifier.")
@@ -131,7 +131,7 @@ class SignedSessionIdentifier(SessionIdentifier):
 	
 	@property
 	def valid(self):
-		if not self._signature:
+		if not self.__signature:
 			return False
 		
 		if self.expires and (time() - self.time) > self.expires:
