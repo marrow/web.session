@@ -11,22 +11,18 @@ from time import time
 from random import randint
 from threading import RLock
 
+from web.core.compat import py3, str, unicode
+
 try:
 	from hmac import compare_digest
 except ImportError:
 	def compare_digest(a, b):
-		return a is b
+		return a == b
 
-try:
-	str = unicode
-except NameError:
-	py3 = True
-else:
-	py3 = False
 
+log = __import__('logging').getLogger(__name__)
 
 MACHINE = int(md5(gethostname().encode() if py3 else gethostname()).hexdigest()[:6], 16)
-
 
 
 class SignatureError(ValueError):
@@ -61,9 +57,6 @@ class SessionIdentifier(object):
 			self.generate()
 	
 	def parse(self, value):
-		if not isinstance(value, str):
-			value = value.decode('ascii')
-		
 		self.time = int(value[:8], 16)
 		self.machine = int(value[8:14], 16)
 		self.process = int(value[14:18], 16)
@@ -104,9 +97,6 @@ class SignedSessionIdentifier(SessionIdentifier):
 		
 		super(SignedSessionIdentifier, self).parse(value)
 		
-		if self.expires and (time() - self.time) > self.expires:
-			raise SignatureError("Expired signed identifier.")
-		
 		self.__signature = value[24:].encode('ascii')
 		
 		if not self.valid:
@@ -133,19 +123,27 @@ class SignedSessionIdentifier(SessionIdentifier):
 	@property
 	def valid(self):
 		if not self.__signature:
+			raise SignatureError("No signature present.")
 			return False
 		
 		if self.expires and (time() - self.time) > self.expires:
+			raise SignatureError("Expired signature.")
 			return False
 		
 		challenge = hmac(
 				self.__secret,
-				unhexlify(str(self).encode('ascii')),
+				unhexlify(bytes(self)),
 				sha256
 			).hexdigest()
 		
 		if hasattr(challenge, 'encode'):
 			challenge = challenge.encode('ascii')
 		
-		return compare_digest(challenge, self.signature)
+		result = compare_digest(challenge, self.signature)
+		
+		if not result:
+			raise SignatureError("Invalid signature:", repr(challenge), repr(self.signature))
+			return False
+		
+		return True
 

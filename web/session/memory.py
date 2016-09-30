@@ -93,6 +93,9 @@ class MemorySession(object):
 	def __get__(self, session, type=None):
 		"""Retrieve the current session, or create one within our stores if missing."""
 		
+		if session is None:
+			return self
+		
 		now = datetime.utcnow()
 		sid = str(session._id)
 		

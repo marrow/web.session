@@ -138,8 +138,8 @@ class SessionExtension(object):
 			if __debug__:
 				log.debug("No existing session identifier; generated new.")
 		
-		session['_id'] = identifier
-		session['_accessed'] = True
+		session.__dict__['_id'] = identifier
+		session.__dict__['_accessed'] = True
 		return identifier
 	
 	def start(self, context):
@@ -149,7 +149,7 @@ class SessionExtension(object):
 		context.session = ContextGroup(**self.engines)
 		
 		# Also lazily construct the session ID on first request.
-		context.session['_id'] = lazy(self._get_session_id, '_id')
+		context.session.__dict__['_id'] = lazy(self._get_session_id, '_id')
 		
 		# Notify the engines.
 		self._handle_event(True, 'start', context=context)
@@ -184,12 +184,10 @@ class SessionExtension(object):
 		self._handle_event(True, 'after', context)
 		
 		if not context.session._accessed:
-			print("Returning, not accessed.")
 			return  # No more work to do if the session was never accessed.
 		
 		# No work to do unless the session is new or we're told to refresh the cookie.
 		if not context.session._new or not self.refreshes:
-			print("Returning, not new or not refreshing.")
 			return
 		
 		# Assign the cookie (string value of our signed token) via the WebOb Response object.
