@@ -32,6 +32,9 @@ class TestSessionUsage(object):
 		def __init__(self, context):
 			self._ctx = context
 		
+		def nop(self):
+			return "nop"
+		
 		def id(self):
 			return str(self._ctx.session._id)
 		
@@ -48,10 +51,14 @@ class TestSessionUsage(object):
 	def setup_class(cls):
 		"""Construct the application to test against."""
 		
+		ext = SessionExtension()
+		cls.sessions = ext.engines['default']._sessions
+		
 		cls.app = Application(cls.Root, extensions=[
 				SerializationExtension(),
-				SessionExtension(),
+				ext,
 			])
+		
 		cls.cookies = {}
 	
 	def _update_cookies(self, response):
@@ -80,11 +87,16 @@ class TestSessionUsage(object):
 		return resp
 	
 	def test_session(self):
+		response = self.get('/nop')  # Do not touch a session.
+		assert not self.sessions
+		
 		# This should create a session, and set a cookie.
 		response = self.get('/get')  # Request the contents of the session.
+		assert self.sessions
 		
 		contents = response.json
 		sid = contents.get('_id', None)
+		assert sid in self.sessions
 		
 		response = self.get('/id')  # Request the session ID.
 		assert len(sid) == 24
