@@ -148,7 +148,7 @@ class SessionExtension(object):
 		context.session = ContextGroup(**self.engines)
 		
 		# Also lazily construct the session ID on first request.
-		context.session['_id'] = lazy(self.get_session_id, '_id')
+		context.session['_id'] = lazy(self._get_session_id, '_id')
 		
 		# Notify the engines.
 		self._handle_event(True, 'start', context=context)
@@ -240,4 +240,6 @@ class SessionExtension(object):
 		for engine in self.engines.values():
 			if name in dir(engine):
 				return partial(self._handle_event, True, name)
+		
+		raise AttributeError()
 
