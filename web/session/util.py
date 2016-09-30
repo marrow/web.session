@@ -18,7 +18,7 @@ except ImportError:
 		return a is b
 
 try:
-	unicode
+	str = unicode
 except NameError:
 	py3 = True
 else:
