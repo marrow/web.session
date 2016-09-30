@@ -169,7 +169,6 @@ class SessionExtension(object):
 					_ctx = proxy(context),  # Bind this promoted SessionGroup to the current context.
 					_new = False,  # Identify if this is a brand new session.
 					_accessed = False,  # Identify if any attempt has been made to access session data.
-					_dirty = False,  # Track if there are changes to commit.
 				)
 		
 		self._handle_event(True, 'prepare', context)
@@ -202,7 +201,7 @@ class SessionExtension(object):
 		# Allow engines to clean up if needed.
 		self._handle_event(True, 'done', context)
 		
-		if not context.session._dirty:
+		if not context.session._accessed:
 			return  # Bail early if the session was never accessed.
 		
 		# Inform session engines that had their data touched to persist any changes.
