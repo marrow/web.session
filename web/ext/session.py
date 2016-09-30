@@ -13,7 +13,7 @@ from functools import partial
 from ..core.util import lazy
 from ..core.context import ContextGroup
 from ..session.memory import MemorySession
-from ..session.util import SignedSessionIdentifier
+from ..session.util import SignatureError, SignedSessionIdentifier
 
 
 log = __import__('logging').getLogger(__name__)
@@ -121,8 +121,8 @@ class SessionExtension(object):
 			try:
 				identifier = SignedSessionIdentifier(token, secret=self.__secret, expires=self.expires)
 			
-			except ValueError:
-				log.warn("Session signature failed to validate.")
+			except SignatureError as e:
+				log.warn("Session signature failed to validate: " + str(e))
 			
 			else:
 				if __debug__:

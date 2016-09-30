@@ -28,6 +28,11 @@ else:
 MACHINE = int(md5(gethostname().encode() if py3 else gethostname()).hexdigest()[:6], 16)
 
 
+
+class SignatureError(ValueError):
+	pass
+
+
 class Counter(object):
 	def __init__(self):
 		self.value = randint(0, 2**24)
@@ -56,6 +61,9 @@ class SessionIdentifier(object):
 			self.generate()
 	
 	def parse(self, value):
+		if not isinstance(value, str):
+			value = value.decode('ascii')
+		
 		self.time = int(value[:8], 16)
 		self.machine = int(value[8:14], 16)
 		self.process = int(value[14:18], 16)
@@ -91,17 +99,17 @@ class SignedSessionIdentifier(SessionIdentifier):
 	
 	def parse(self, value):
 		if len(value) != 88:
-			raise ValueError("Invalid signed identifier length.")
+			raise SignatureError("Invalid signed identifier length.")
 		
 		super(SignedSessionIdentifier, self).parse(value)
 		
 		if self.expires and (time() - self.time) > self.expires:
-			raise ValueError("Expired signed identifier.")
+			raise SignatureError("Expired signed identifier.")
 		
 		self._signature = value[24:]
 		
 		if not self.valid:
-			raise ValueError("Invalid signed identifier.")
+			raise SignatureError("Invalid signed identifier.")
 	
 	@property
 	def signed(self):
