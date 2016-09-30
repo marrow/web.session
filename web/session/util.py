@@ -113,10 +113,7 @@ class SignedSessionIdentifier(SessionIdentifier):
 	
 	@property
 	def signed(self):
-		identifier = super(SignedSessionIdentifier, self).__str__()
-		identifier = identifier + self.signature
-		
-		return identifier
+		return (str(self) + self.signature).encode('ascii')
 	
 	@property
 	def signature(self):
@@ -126,6 +123,9 @@ class SignedSessionIdentifier(SessionIdentifier):
 					unhexlify(str(self).encode('ascii')),
 					sha256
 				).hexdigest()
+			
+			if not isinstance(self.__signature, str):
+				self.__signature = self.__signature.decode('ascii')
 		
 		return self.__signature
 	
