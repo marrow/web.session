@@ -5,6 +5,7 @@
 from __future__ import unicode_literals
 
 from os import urandom
+from weakref import proxy
 from binascii import hexlify
 from datetime import timedelta
 from functools import partial
@@ -90,7 +91,7 @@ class SessionExtension(object):
 				self.expires = expires = int(expires) * 60 * 60
 			
 			elif isinstance(expires, timedelta):
-				self.expires = expires = expires.total_seconds()
+				self.expires = expires = int(expires.total_seconds())
 			
 			cookie.setdefault('max_age', expires)
 		
@@ -107,52 +108,44 @@ class SessionExtension(object):
 			self.needs.update(getattr(engine, 'needs', ()))
 			self.provides.update(getattr(engine, 'provides', ()))
 	
-	def get_session_id(self, session):
+	def _get_session_id(self, session):
 		"""Lazily get the session id for the current request.
 		
 		The `session` passed to this function is the bound SessionGroup instance containing the lazy engines.
 		"""
-		# TODO: check if any session engines have this key, if not generate a new one
-		# otherwise use this key
 		
-		cookies = session._ctx.request.cookies
 		identifier = None
-		token = cookies.get(self.cookie['name'], None)
-		
-		if isinstance(token, bytes):
-			token = token.decode('ascii')
+		token = session._ctx.request.cookies.get(self.cookie['name'], None)
 		
 		if token:
 			try:
 				identifier = SignedSessionIdentifier(token, secret=self.__secret, expires=self.expires)
 			
 			except ValueError:
-				log.warn("Signature failed to validate.", extra=dict(request=id(session._ctx)))
+				log.warn("Session signature failed to validate.")
 			
 			else:
 				if __debug__:
-					log.debug("Retreived valid session token from cookie.", extra=dict(
-							request=id(session._ctx), identifier=identifier))
+					log.debug("Retreived valid session token from cookie.")
+			
+			# TODO: Verify here that the session does, actually, exist in at least one engine.
+			# This would help avoid "session fixation" issues.
 		
 		if not identifier:
-			# TODO: if token: notify to nuke old session
-			identifier = SignedSessionIdentifier(secret=self.__secret)
+			identifier = SignedSessionIdentifier(secret=self.__secret, expires=self.expires)
 			session['_new'] = True
 			
 			if __debug__:
-				log.debug("No existing session identifier; generated new.", extra=dict(
-					request=id(session._ctx), session=identifier))
+				log.debug("No existing session identifier; generated new.")
 		
+		session._id = identifier
 		return identifier
 	
 	def start(self, context):
 		"""Called to prepare attributes on the ApplicationContext."""
 		
 		# Construct lazy bindings for each configured session extension.
-		context.session = ContextGroup(**{
-				name: lazy(lambda s: engine.load(s._ctx, s._id), name) \
-				for name, engine in self.engines.items()
-			})
+		context.session = ContextGroup(**self.engines)
 		
 		# Also lazily construct the session ID on first request.
 		context.session['_id'] = lazy(self.get_session_id, '_id')
@@ -167,10 +160,16 @@ class SessionExtension(object):
 		"""
 		
 		if __debug__:
-			log.debug("Preparing session group.", extra=dict(request=id(context)))
+			log.debug("Preparing session group.")
 		
 		context.session = context.session._promote('SessionGroup')  # Allow the lazy descriptor to run from the class.
-		context.session['_ctx'] = context  # Bind this promoted SessionGroup to the current context.
+		context.session['_ctx'] = proxy(context)  # Bind this promoted SessionGroup to the current context.
+		context.session.__dict__.update(
+					_ctx = proxy(context),  # Bind this promoted SessionGroup to the current context.
+					_new = False,  # Identify if this is a brand new session.
+					_accessed = False,  # Identify if any attempt has been made to access session data.
+					_dirty = False,  # Track if there are changes to commit.
+				)
 		
 		self._handle_event(True, 'prepare', context)
 	
@@ -180,18 +179,17 @@ class SessionExtension(object):
 		Determine if the session cookie needs to be set, if so, set it.
 		"""
 		
-		# engines could have made a new storage even if the id is old
+		# Allow engines to clean up if needed; first, this time, to act as a middleware stack.
 		self._handle_event(True, 'after', context)
 		
-		# if the session was accessed at all during this request
-		if '_id' not in context.session.__dict__:
+		if not context.session._accessed:
+			return  # No more work to do if the session was never accessed.
+		
+		# No work to do unless the session is new or we're told to refresh the cookie.
+		if not context.session._new or self.refreshes:
 			return
 		
-		# if the session id has just been generated this request, we need to set the cookie
-		if not self.refreshes and '_new' not in context.session.__dict__:
-			return
-		
-		# see WebOb request / response
+		# Assign the cookie (string value of our signed token) via the WebOb Response object.
 		context.response.set_cookie(value=str(context.session._id), **self.cookie)
 	
 	def done(self, context):
@@ -200,14 +198,14 @@ class SessionExtension(object):
 		This helps us defer the overhead of writing session data out until after the client is already served.
 		"""
 		
+		# Allow engines to clean up if needed.
 		self._handle_event(True, 'done', context)
 		
-		if '_id' not in context.session.__dict__:
+		if not context.session._dirty:
 			return  # Bail early if the session was never accessed.
 		
 		# Inform session engines that had their data touched to persist any changes.
-		for ext in set(context.session.__dict__) & set(self.engines):
-			self.engines[ext].persist(context, context.session._id, context.session[ext])
+		self._handle_event(False, 'persist', context)
 	
 	def _handle_event(self, all, event, context, *args, **kw):
 		"""Send a signal to all, or only accessed session engines.
@@ -222,8 +220,11 @@ class SessionExtension(object):
 		"""
 		
 		# Determine the set of engines we're sending signals to.
-		engines = self.engines.items() if all else {i: self.engines[i] for i \
-				in set(context.session.__dict__) & set(self.engines)}
+		engines = self.engines.items()
+		
+		if not all:  # Restrict to only accessed engines.
+			accessed = set(context.session.__dict__) & set(self.engines)
+			engines = ((name, engine) for name, engine in engines if name in accessed)
 		
 		# Call the event callback, if present in the engine.
 		for name, engine in engines:
