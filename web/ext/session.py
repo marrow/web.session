@@ -190,7 +190,7 @@ class SessionExtension(object):
 			return
 		
 		# Assign the cookie (string value of our signed token) via the WebOb Response object.
-		context.response.set_cookie(value=str(context.session._id), **self.cookie)
+		context.response.set_cookie(value=context.session._id.signed, **self.cookie)
 	
 	def done(self, context):
 		"""Called after the response has been fully sent to the client.

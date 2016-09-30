@@ -95,7 +95,8 @@ class SignedSessionIdentifier(SessionIdentifier):
 		if not self.valid:
 			raise ValueError("Invalid signed identifier.")
 	
-	def __str__(self):
+	@property
+	def signed(self):
 		identifier = super(SignedSessionIdentifier, self).__str__()
 		identifier = identifier + self.signature
 		
