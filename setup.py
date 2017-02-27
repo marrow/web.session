@@ -13,8 +13,6 @@ try:
 except ImportError:
 	from setuptools import setup, find_packages
 
-from setuptools.command.test import test as TestCommand
-
 
 if sys.version_info < (2, 7):
 	raise SystemExit("Python 2.7 or later is required.")
@@ -24,29 +22,14 @@ elif sys.version_info > (3, 0) and sys.version_info < (3, 2):
 version = description = url = author = author_email = ""  # Silence linter warnings.
 exec(open(os.path.join("web", "session", "release.py")).read())  # Actually populate those values.
 
-
-class PyTest(TestCommand):
-	__slots__ = ('test_args', 'test_suite')
-	
-	def finalize_options(self):
-		TestCommand.finalize_options(self)
-		
-		self.test_args = []
-		self.test_suite = True
-	
-	def run_tests(self):
-		import pytest
-		sys.exit(pytest.main(self.test_args))
-
-
 here = os.path.abspath(os.path.dirname(__file__))
 
 tests_require = [
 		'pytest',  # test collector and extensible runner
 		'pytest-cov',  # coverage reporting
 		'pytest-flakes',  # syntax validation
-		'pytest-spec',  # output formatting
-		'web.dispatch.resource',  # dispatch tests
+		'pytest-capturelog',  # log capture
+		'web.dispatch.object',  # test endpoint routing
 	]
 
 
@@ -95,17 +78,13 @@ setup(
 			'web.ext',  # framework extensions
 			'web.session',  # session engines
 		],
-	zip_safe = True,
-	cmdclass = dict(
-			test = PyTest,
-		),
 	
 	# ### Plugin Registration
 	
 	entry_points = {
 			# #### Re-usable applications or application components.
 			'web.app': [
-					'session = web.app.session:SessionCollection',
+					# 'session = web.app.session:SessionCollection',
 				],
 			
 			# #### WebCore Extensions
@@ -122,9 +101,12 @@ setup(
 	
 	# ## Installation Dependencies
 	
+	setup_requires = [
+			'pytest-runner',
+		] if {'pytest', 'test', 'ptr'}.intersection(sys.argv) else [],
 	install_requires = [
 			'marrow.package<2.0',  # dynamic execution and plugin management
-			'itsdangerous',  # token signing
+			'WebCore>=2.0.3,<3.0',  # web framework version pinning
 		],
 	tests_require = tests_require,
 	

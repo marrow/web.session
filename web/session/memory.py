@@ -1,3 +1,4 @@
+# encoding: utf-8
 
 """Session handling extension using session engines."""
 
@@ -87,41 +88,44 @@ class MemorySession(object):
 	
 	def invalidate(self, context, sid):
 		"""Delete our storage of the given session."""
-		if __debug__:
-			log.debug("", extra=dict(request=id(context), session=sid))
-		
 		return self._sessions.pop(sid, None) is not None
 	
-	def load(self, context, sid):
+	def __get__(self, session, type=None):
 		"""Retrieve the current session, or create one within our stores if missing."""
 		
+		if session is None:
+			return self
+		
 		now = datetime.utcnow()
+		sid = str(session._id)
 		
 		if sid not in self._sessions:
 			if __debug__:
-				log.debug("Constructing new in-memory session.", extra=dict(request=id(context), session=sid))
+				log.debug("Constructing new in-memory session.")
 			
 			self._sessions[sid] = Context()
 		
-		elif self._expire and '_expires' in self._sessions[sid] and self._sessions[sid]['_expires'] <= now:
+		elif self._expire and '_expires' in self._sessions[sid] and self._sessions[sid]._expires <= now:
 			if __debug__:
-				log.debug("Recreating expired in-memory session.", extra=dict(request=id(context), session=sid))
+				log.debug("Recreating expired in-memory session.")
 			
 			self._sessions[sid] = Context()
 		
 		elif __debug__:
-			log.debug("Loading existing in-memory session.", extra=dict(request=id(context), session=sid))
+			log.debug("Loading existing in-memory session.")
+		
+		session[self.name] = self._sessions[sid]
 		
 		return self._sessions[sid]
 	
-	def persist(self, context, sid, session):
+	def persist(self, context):
 		"""Perform the work of saving modified session data back out.
 		
 		The in-memory representation is modified "live" in-place, so this only updates our expiry time.
 		"""
 		if __debug__:
-			log.debug("Persisting in-memory session.", extra=dict(request=id(context), session=sid))
+			log.debug("Persisting in-memory session.")
 		
-		if self._expire and self._refresh:
-			session['_expires'] = datetime.utcnow() + self._expire
+		if self._expire and (self._refresh or '_expires' not in getattr(context.session, self.name)):
+			getattr(context.session, self.name)._expires = datetime.utcnow() + self._expire
 
