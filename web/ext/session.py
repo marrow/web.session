@@ -167,6 +167,7 @@ class SessionExtension(object):
 		context.session['_ctx'] = proxy(context)  # Bind this promoted SessionGroup to the current context.
 		context.session.__dict__.update(
 					_ctx = proxy(context),  # Bind this promoted SessionGroup to the current context.
+					_engines = self.engines, # Access to engines without triggering __getitem__ on SessionGroup.
 					_new = False,  # Identify if this is a brand new session.
 					_accessed = False,  # Identify if any attempt has been made to access session data.
 				)
@@ -242,4 +243,3 @@ class SessionExtension(object):
 				return partial(self._handle_event, True, name)
 		
 		raise AttributeError()
-
