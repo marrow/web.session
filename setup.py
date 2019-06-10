@@ -25,7 +25,7 @@ setup(
 	version = version,
 	
 	description = description,
-	long_description = codecs.open(os.path.join(here, 'README.rst'), 'r', 'utf8').read(),
+	long_description = (here / 'README.rst').read_text('utf-8'),
 	url = url,
 	download_url = 'https://github.com/marrow/web.session/releases',
 	
@@ -33,7 +33,12 @@ setup(
 	author_email = author.email,
 	
 	license = 'MIT',
-	keywords = ['marrow', 'web.app', 'web.ext', 'web.session'],
+	keywords = [
+			'marrow',
+			'web.ext',
+			'web.session',
+			'sessions',
+		],
 	classifiers = [
 			"Development Status :: 5 - Production/Stable",
 			"Environment :: Console",
@@ -42,63 +47,50 @@ setup(
 			"License :: OSI Approved :: MIT License",
 			"Operating System :: OS Independent",
 			"Programming Language :: Python",
-			"Programming Language :: Python :: 2",
-			"Programming Language :: Python :: 2.7",
 			"Programming Language :: Python :: 3",
-			"Programming Language :: Python :: 3.2",
-			"Programming Language :: Python :: 3.3",
-			"Programming Language :: Python :: 3.4",
-			"Programming Language :: Python :: 3.5",
+			"Programming Language :: Python :: 3.6",
+			"Programming Language :: Python :: 3.7",
+			"Programming Language :: Python :: 3.8",
 			"Programming Language :: Python :: Implementation :: CPython",
 			"Programming Language :: Python :: Implementation :: PyPy",
 			"Topic :: Software Development :: Libraries",
 			"Topic :: Software Development :: Libraries :: Python Modules",
 		],
 	
-	# ### Code Discovery
-	
-	packages = find_packages(exclude=['bench', 'docs', 'example', 'test', 'htmlcov']),
+	packages = ('web.ext', 'web.session'),
 	include_package_data = True,
-	namespace_packages = [
-			'web',  # primary namespace
-			'web.app',  # session management endpoints
-			'web.ext',  # framework extensions
-			'web.session',  # session engines
-		],
-	
-	# ### Plugin Registration
-	
-	entry_points = {
-			# #### Re-usable applications or application components.
-			'web.app': [
-					# 'session = web.app.session:SessionCollection',
-				],
-			
-			# #### WebCore Extensions
-			'web.extension': [
-					'session = web.ext.session:SessionExtension',
-				],
-			
-			# #### WebCore Extensions
-			'web.session': [
-					'memory = web.session.memory:MemorySession',
-					'disk = web.session.disk:DiskSession',
-				],
-		},
+	package_data = {'': ['README.rst', 'LICENSE.txt']},
+	zip_safe = Fale,
 	
 	# ## Installation Dependencies
 	
 	setup_requires = [
 			'pytest-runner',
 		] if {'pytest', 'test', 'ptr'}.intersection(sys.argv) else [],
+	
 	install_requires = [
 			'marrow.package<2.0',  # dynamic execution and plugin management
 			'WebCore>=2.0.3,<3.0',  # web framework version pinning
 		],
-	tests_require = tests_require,
 	
 	extras_require = {
 			'development': tests_require,  # An extended set of useful development tools.
 		},
+	
+	tests_require = tests_require,
+	
+	entry_points = {
+			#'web.app': [
+					# 'session = web.app.session:SessionCollection',
+			#	],
+			
+			'web.extension': [
+					'session = web.ext.session:SessionExtension',
+				],
+			
+			'web.session': [
+					'memory = web.session.memory:MemorySession',
+					'disk = web.session.disk:DiskSession',
+				],
+		},
 )
-
