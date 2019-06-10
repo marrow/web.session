@@ -1,50 +1,37 @@
-#!/usr/bin/env python
-# encoding: utf-8
+#!/usr/bin/env python3
 
-from __future__ import print_function
-
-import os
-import sys
-import codecs
+from setuptools import setup
+from sys import argv, version_info as python_version
+from pathlib import Path
 
 
-try:
-	from setuptools.core import setup, find_packages
-except ImportError:
-	from setuptools import setup, find_packages
+if python_version < (3, 6):
+	raise SystemExit("Python 3.6 or later is required.")
 
-
-if sys.version_info < (2, 7):
-	raise SystemExit("Python 2.7 or later is required.")
-elif sys.version_info > (3, 0) and sys.version_info < (3, 2):
-	raise SystemExit("CPython 3.3 or Pypy 3 (3.2) or later is required.")
-
+here = Path(__file__).resolve().parent
 version = description = url = author = author_email = ""  # Silence linter warnings.
-exec(open(os.path.join("web", "session", "release.py")).read())  # Actually populate those values.
-
-here = os.path.abspath(os.path.dirname(__file__))
+exec((here / "web" / "session" / "release.py").read_text('utf-8'))  # Actually populate those values.
 
 tests_require = [
 		'pytest',  # test collector and extensible runner
 		'pytest-cov',  # coverage reporting
 		'pytest-flakes',  # syntax validation
-		'pytest-capturelog',  # log capture
 		'web.dispatch.object',  # test endpoint routing
 	]
 
 
-# ## Package Metadata
-
 setup(
-	# ### Basic Metadata
 	name = "web.session",
 	version = version,
+	
 	description = description,
 	long_description = codecs.open(os.path.join(here, 'README.rst'), 'r', 'utf8').read(),
 	url = url,
 	download_url = 'https://github.com/marrow/web.session/releases',
+	
 	author = author.name,
 	author_email = author.email,
+	
 	license = 'MIT',
 	keywords = ['marrow', 'web.app', 'web.ext', 'web.session'],
 	classifiers = [
