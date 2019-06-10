@@ -1,8 +1,4 @@
-# encoding: utf-8
-
 """Session handling extension utilizing pluggable session data storage engines."""
-
-from __future__ import unicode_literals
 
 from os import urandom
 from weakref import proxy
@@ -64,6 +60,8 @@ class SessionExtension(object):
 		setting made here. (There is never a point in setting a specific engine's expiry time to be longer than the
 		global.)
 		"""
+		
+		super().__init__()
 		
 		if not secret:  # Ensure we either have a secret, or generate one in development.
 			if not __debug__:  # pragma: no cover

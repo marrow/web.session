@@ -1,7 +1,3 @@
-# encoding: utf-8
-
-from __future__ import unicode_literals
-
 from datetime import timedelta
 from webob import Request
 from webob.cookies import Cookie
@@ -11,7 +7,7 @@ from web.ext.serialize import SerializationExtension
 from web.ext.session import SessionExtension
 
 
-class TestSessionExtension(object):
+class TestSessionExtension:
 	def test_construction_defaults(self):
 		se = SessionExtension()
 		assert se.refreshes
@@ -27,8 +23,8 @@ class TestSessionExtension(object):
 		assert se.expires == 2 * 24 * 60 * 60
 
 
-class TestSessionUsage(object):
-	class Root(object):
+class TestSessionUsage:
+	class Root:
 		def __init__(self, context):
 			self._ctx = context
 		
@@ -109,4 +105,3 @@ class TestSessionUsage(object):
 		
 		contents = response.json
 		assert contents == {'_id': sid, 'name': "Alice", 'age': 27}
-

@@ -1,5 +1,3 @@
-# encoding: utf-8
-
 """Session handling extension using session engines."""
 
 from threading import Lock, Timer
@@ -12,10 +10,11 @@ log = __import__('logging').getLogger(__name__)
 
 
 
-class PeriodicExpiration(object):
+class PeriodicExpiration:
 	"""Periodically clean up stale sessions."""
 	
 	def __init__(self, pool, period=60):
+		super().__init__()
 		self.pool = pool
 		self._stop = False
 		self.period = period
@@ -59,10 +58,11 @@ class PeriodicExpiration(object):
 			self.timer.stop()
 
 
-class MemorySession(object):
+class MemorySession:
 	def __init__(self, expire=None, refresh=True):
 		"""Initialize in-memory session storage."""
 		
+		super().__init__()
 		self._sessions = {}
 		
 		if expire and hasattr(expire, 'isdigit') and expire.isdigit():
@@ -123,6 +123,7 @@ class MemorySession(object):
 		
 		The in-memory representation is modified "live" in-place, so this only updates our expiry time.
 		"""
+		
 		if __debug__:
 			log.debug("Persisting in-memory session.")
 		
