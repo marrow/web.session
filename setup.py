@@ -25,7 +25,7 @@ setup(
 	version = version,
 	
 	description = description,
-	long_description = codecs.open(os.path.join(here, 'README.rst'), 'r', 'utf8').read(),
+	long_description = (here / 'README.rst').read_text('utf-8'),
 	url = url,
 	download_url = 'https://github.com/marrow/web.session/releases',
 	
