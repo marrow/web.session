@@ -61,7 +61,6 @@ setup(
 	include_package_data = True,
 	namespace_packages = [
 			'web',  # primary namespace
-			'web.app',  # session management endpoints
 			'web.ext',  # framework extensions
 			'web.session',  # session engines
 		],
