@@ -91,7 +91,7 @@ setup(
 			'pytest-runner',
 		] if {'pytest', 'test', 'ptr'}.intersection(sys.argv) else [],
 	install_requires = [
-			'marrow.package>=2.0,<3.0',  # dynamic execution and plugin management
+			'marrow.package>=3.0.0,<4.0.0',  # Plugin discovery and loading.
 			'WebCore>=3.0,<4.0',  # web framework version pinning
 		],
 	tests_require = tests_require,
