@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from setuptools import setup, find_packages
+from setuptools import setup
 from sys import argv, version_info as python_version
 from pathlib import Path
 
