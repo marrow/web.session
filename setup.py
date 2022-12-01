@@ -57,13 +57,8 @@ setup(
 	
 	# ### Code Discovery
 	
-	packages = find_packages(exclude=['bench', 'docs', 'example', 'test', 'htmlcov']),
+	packages = ('web.ext', 'web.session'),
 	include_package_data = True,
-	namespace_packages = [
-			'web',  # primary namespace
-			'web.ext',  # framework extensions
-			'web.session',  # session engines
-		],
 	
 	# ### Plugin Registration
 	
