@@ -31,7 +31,6 @@ class SessionExtension(object):
 	
 	_provides = {'session'}  # We provide this feature to the application.
 	_needs = {'request'}  # We depend on the cookie-setting power of the `context.response` object.
-	excludes = {'session'}  # Must be a singleton.
 	
 	def __init__(self, secret=None, default=None, auto=False, expires=None, cookie=None, refresh=True, **engines):
 		"""Configure session management extension and prepare engines.
