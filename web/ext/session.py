@@ -124,7 +124,7 @@ class SessionExtension(object):
 			
 			else:
 				if __debug__:
-					log.debug("Retreived valid session token from cookie.")
+					log.debug("Retrieved valid session token from cookie.")
 			
 			# TODO: Verify here that the session does, actually, exist in at least one engine.
 			# This would help avoid "session fixation" issues.
@@ -148,6 +148,7 @@ class SessionExtension(object):
 		
 		# Also lazily construct the session ID on first request.
 		context.session.__dict__['_id'] = lazy(self._get_session_id, '_id')
+		context.session.__dict__['_ctx'] = proxy(context)  # Bind this promoted SessionGroup to the application context.
 		
 		# Notify the engines.
 		self._handle_event(True, 'start', context=context)
@@ -155,16 +156,16 @@ class SessionExtension(object):
 	def prepare(self, context):
 		"""Called to prepare attributes on the RequestContext.
 		
-		We additionally promote our DBGroup of extensions here and "bind" the group to this request.
+		We additionally promote our SessionGroup of extensions here and "bind" the group to this request.
 		"""
 		
 		if __debug__:
 			log.debug("Preparing session group.")
+			# __import__('wdb').set_trace()
 		
 		context.session = context.session._promote('SessionGroup')  # Allow the lazy descriptor to run from the class.
-		context.session['_ctx'] = proxy(context)  # Bind this promoted SessionGroup to the current context.
 		context.session.__dict__.update(
-					_ctx = proxy(context),  # Bind this promoted SessionGroup to the current context.
+					_ctx = proxy(context),  # Bind this promoted SessionGroup to the request context.
 					_engines = self.engines, # Access to engines without triggering __getitem__ on SessionGroup.
 					_new = False,  # Identify if this is a brand new session.
 					_accessed = False,  # Identify if any attempt has been made to access session data.
@@ -181,12 +182,12 @@ class SessionExtension(object):
 		# Allow engines to clean up if needed; first, this time, to act as a middleware stack.
 		self._handle_event(True, 'after', context)
 		
-		if not context.session._accessed:
-			return  # No more work to do if the session was never accessed.
-		
 		# No work to do unless the session is new or we're told to refresh the cookie.
 		if not context.session._new or not self.refreshes:
 			return
+		
+		if not context.session._accessed:
+			return  # No more work to do if the session was never accessed.
 		
 		# Assign the cookie (string value of our signed token) via the WebOb Response object.
 		context.response.set_cookie(value=context.session._id.signed, **self.cookie)
