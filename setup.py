@@ -99,19 +99,4 @@ setup(
 		},
 	
 	tests_require = tests_require,
-	
-	entry_points = {
-			#'web.app': [
-					# 'session = web.app.session:SessionCollection',
-			#	],
-			
-			'web.extension': [
-					'session = web.ext.session:SessionExtension',
-				],
-			
-			'web.session': [
-					'memory = web.session.memory:MemorySession',
-					'disk = web.session.disk:DiskSession',
-				],
-		},
 )
