@@ -33,7 +33,12 @@ setup(
 	author_email = author.email,
 	
 	license = 'MIT',
-	keywords = ['marrow', 'web.app', 'web.ext', 'web.session'],
+	keywords = [
+			'marrow',
+			'web.ext',
+			'web.session',
+			'sessions',
+		],
 	classifiers = [
 			"Development Status :: 5 - Production/Stable",
 			"Environment :: Console",
@@ -42,13 +47,10 @@ setup(
 			"License :: OSI Approved :: MIT License",
 			"Operating System :: OS Independent",
 			"Programming Language :: Python",
-			"Programming Language :: Python :: 2",
-			"Programming Language :: Python :: 2.7",
 			"Programming Language :: Python :: 3",
-			"Programming Language :: Python :: 3.2",
-			"Programming Language :: Python :: 3.3",
-			"Programming Language :: Python :: 3.4",
-			"Programming Language :: Python :: 3.5",
+			"Programming Language :: Python :: 3.6",
+			"Programming Language :: Python :: 3.7",
+			"Programming Language :: Python :: 3.8",
 			"Programming Language :: Python :: Implementation :: CPython",
 			"Programming Language :: Python :: Implementation :: PyPy",
 			"Topic :: Software Development :: Libraries",
@@ -59,6 +61,7 @@ setup(
 	
 	packages = ('web.ext', 'web.session'),
 	include_package_data = True,
+	package_data = {'': ['README.rst', 'LICENSE.txt']},
 	
 	# ### Plugin Registration
 	
@@ -85,14 +88,30 @@ setup(
 	setup_requires = [
 			'pytest-runner',
 		] if {'pytest', 'test', 'ptr'}.intersection(sys.argv) else [],
+	
 	install_requires = [
 			'marrow.package>=2.0.0,<3.0.0',  # Plugin discovery and loading.
 			'WebCore>=3.0,<4.0',  # web framework version pinning
 		],
-	tests_require = tests_require,
 	
 	extras_require = {
 			'development': tests_require,  # An extended set of useful development tools.
 		},
+	
+	tests_require = tests_require,
+	
+	entry_points = {
+			#'web.app': [
+					# 'session = web.app.session:SessionCollection',
+			#	],
+			
+			'web.extension': [
+					'session = web.ext.session:SessionExtension',
+				],
+			
+			'web.session': [
+					'memory = web.session.memory:MemorySession',
+					'disk = web.session.disk:DiskSession',
+				],
+		},
 )
-
