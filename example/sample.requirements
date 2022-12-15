@@ -1,0 +1,17 @@
+-e git+https://github.com/marrow/mongo.git@cegid#egg=marrow.mongo
+-e git+https://github.com/marrow/package.git@cegid#egg=marrow.package
+-e git+https://github.com/marrow/schema.git@2.0.0#egg=marrow.schema
+
+-e git+https://github.com/marrow/web.db.git@cegid#egg=web.db
+-e git+https://github.com/marrow/web.dispatch.git@3.0.1#egg=web.dispatch
+-e git+https://github.com/marrow/web.dispatch.object.git@3.0.0#egg=web.dispatch.object
+-e git+https://github.com/marrow/web.security.git@develop#egg=web.security
+-e git+https://github.com/marrow/web.session.git@cegid#egg=web.session
+
+-e git+https://github.com/marrow/WebCore.git@cegid#egg=WebCore
+
+backlash
+tzlocal
+
+ptipython
+wdb
