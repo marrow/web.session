@@ -57,10 +57,31 @@ setup(
 			"Topic :: Software Development :: Libraries :: Python Modules",
 		],
 	
+	# ### Code Discovery
+	
 	packages = ('web.ext', 'web.session'),
 	include_package_data = True,
 	package_data = {'': ['README.rst', 'LICENSE.txt']},
-	zip_safe = Fale,
+	
+	# ### Plugin Registration
+	
+	entry_points = {
+			# #### Re-usable applications or application components.
+			'web.app': [
+					# 'session = web.app.session:SessionCollection',
+				],
+			
+			# #### WebCore Extensions
+			'web.extension': [
+					'session = web.ext.session:SessionExtension',
+				],
+			
+			# #### WebCore Extensions
+			'web.session': [
+					'memory = web.session.memory:MemorySession',
+					'disk = web.session.disk:DiskSession',
+				],
+		},
 	
 	# ## Installation Dependencies
 	
@@ -69,8 +90,8 @@ setup(
 		] if {'pytest', 'test', 'ptr'}.intersection(sys.argv) else [],
 	
 	install_requires = [
-			'marrow.package<2.0',  # dynamic execution and plugin management
-			'WebCore>=2.0.3,<3.0',  # web framework version pinning
+			'marrow.package>=2.0.0,<3.0.0',  # Plugin discovery and loading.
+			'WebCore>=3.0,<4.0',  # web framework version pinning
 		],
 	
 	extras_require = {
@@ -78,19 +99,4 @@ setup(
 		},
 	
 	tests_require = tests_require,
-	
-	entry_points = {
-			#'web.app': [
-					# 'session = web.app.session:SessionCollection',
-			#	],
-			
-			'web.extension': [
-					'session = web.ext.session:SessionExtension',
-				],
-			
-			'web.session': [
-					'memory = web.session.memory:MemorySession',
-					'disk = web.session.disk:DiskSession',
-				],
-		},
 )
