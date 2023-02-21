@@ -27,7 +27,7 @@ class SessionExtension(object):
 	below for details.
 	"""
 	
-	__slots__ = ('provides', 'needs', 'uses', '__secret', 'refreshes', 'cookie', 'engines', 'expires')
+	__slots__ = ('provides', 'needs', 'uses', 'secret', 'refreshes', 'cookie', 'engines', 'expires')
 	
 	_provides = {'session'}  # We provide this feature to the application.
 	_needs = {'request'}  # We depend on the cookie-setting power of the `context.response` object.
@@ -72,7 +72,7 @@ class SessionExtension(object):
 				))
 		
 		self.refreshes = refresh
-		self.__secret = secret
+		self.secret = secret
 		self.cookie = cookie = cookie or dict()
 		self.engines = engines
 		self.expires = None
@@ -116,7 +116,7 @@ class SessionExtension(object):
 		
 		if token:
 			try:
-				identifier = SignedSessionIdentifier(token, secret=self.__secret, expires=self.expires)
+				identifier = SignedSessionIdentifier(token, secret=self.secret, expires=self.expires)
 			
 			except SignatureError as e:
 				log.warn("Session signature failed to validate: " + str(e))
@@ -129,8 +129,8 @@ class SessionExtension(object):
 			# This would help avoid "session fixation" issues.
 		
 		if not identifier:
-			identifier = SignedSessionIdentifier(secret=self.__secret, expires=self.expires)
-			session['_new'] = True
+			identifier = SignedSessionIdentifier(secret=self.secret, expires=self.expires)
+			session.__dict__['_new'] = True
 			
 			if __debug__:
 				log.debug("No existing session identifier; generated new.")
@@ -144,6 +144,7 @@ class SessionExtension(object):
 		
 		# Construct lazy bindings for each configured session extension.
 		context.session = ContextGroup(**self.engines)
+		context.session.__dict__['_ext'] = proxy(self)
 		
 		# Also lazily construct the session ID on first request.
 		context.session.__dict__['_id'] = lazy(self._get_session_id, '_id')
@@ -160,7 +161,6 @@ class SessionExtension(object):
 		
 		if __debug__:
 			log.debug("Preparing session group.")
-			# __import__('wdb').set_trace()
 		
 		context.session = context.session._promote('SessionGroup')  # Allow the lazy descriptor to run from the class.
 		context.session.__dict__.update(
