@@ -50,11 +50,20 @@ class SessionIdentifier:
 		self.process = int(value[14:18], 16)
 		self.counter = int(value[18:24], 16)
 	
+	_parse = parse
+	
 	def generate(self):
 		self.time = int(time())
 		self.machine = MACHINE
 		self.process = getpid() % 0xFFFF
 		self.counter = next(counter)
+	
+	@classmethod
+	def convert(SessionIdentifier, oid, **kw):
+		"""Convert an existing ObjectID to a SessionIdentifier."""
+		self = SessionIdentifier(**kw)
+		self._parse(oid)
+		return self
 	
 	def __bytes__(self):
 		return str(self).encode('ascii')
